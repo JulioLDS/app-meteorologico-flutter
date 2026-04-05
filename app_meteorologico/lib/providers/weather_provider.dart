@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/weather_model.dart';
 import '../services/weather_service.dart';
+import '../services/supabase_service.dart';
 
 class WeatherProvider with ChangeNotifier {
   final WeatherService _service = WeatherService();
@@ -41,6 +42,11 @@ class WeatherProvider with ChangeNotifier {
       _weather = data;
       _currentCity = city ?? data.cityName;
       
+       await SupabaseService.saveWeatherData(
+        city: _currentCity!,
+        temperature: data.temperature,
+        humidity: data.humidity?.toDouble(), 
+      );
       await _saveCityPreference(_currentCity!);
       
       notifyListeners();
