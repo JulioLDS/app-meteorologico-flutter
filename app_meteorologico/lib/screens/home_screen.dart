@@ -5,8 +5,23 @@ import '../widgets/weather_card.dart';
 import '../widgets/forecast_list.dart';
 import '../widgets/search_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        context.read<WeatherProvider>().loadSavedCity();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +29,7 @@ class HomeScreen extends StatelessWidget {
       builder: (context, provider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('🌤️ Clima Brasil'),
+            title: Text(provider.currentCity ?? '🌤️ Clima Brasil'),
             centerTitle: true,
             actions: [
               IconButton(
@@ -51,15 +66,12 @@ class HomeScreen extends StatelessWidget {
                         WeatherCard(weather: provider.weather!),
                         if (provider.weather!.forecast?.isNotEmpty == true) ...[
                           const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                'Previsão dos próximos dias',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                'Previsão estendida',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ),
@@ -78,7 +90,7 @@ class HomeScreen extends StatelessWidget {
                         Icon(Icons.cloud_outlined, size: 80, color: Colors.grey),
                         const SizedBox(height: 16),
                         const Text(
-                          'Digite uma cidade para ver o clima',
+                          'Digite uma cidade para começar',
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       ],
@@ -105,10 +117,7 @@ class HomeScreen extends StatelessWidget {
           Icon(Icons.error_outline, color: Colors.red.shade700),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: Colors.red.shade700),
-            ),
+            child: Text(message, style: TextStyle(color: Colors.red.shade700)),
           ),
         ],
       ),

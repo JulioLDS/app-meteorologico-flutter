@@ -1,10 +1,14 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/weather_model.dart';
 import '../services/weather_service.dart';
 
 class WeatherProvider with ChangeNotifier {
   final WeatherService _service = WeatherService();
   
+  static const String _cityKey = 'last_searched_city';
+  SharedPreferences? _prefs;
+
   WeatherData? _weather;
   String? _currentCity;
   bool _isLoading = false;
@@ -14,6 +18,18 @@ class WeatherProvider with ChangeNotifier {
   String? get currentCity => _currentCity;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  Future<void> initPreferences() async {
+    _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  Future<void> loadSavedCity() async {
+    await initPreferences();
+    final savedCity = _prefs?.getString(_cityKey);
+    if (savedCity != null && savedCity.isNotEmpty) {
+      await fetchWeather(city: savedCity);
+    }
+  }
 
   Future<void> fetchWeather({String? city}) async {
     _setLoading(true);
@@ -25,15 +41,21 @@ class WeatherProvider with ChangeNotifier {
       _weather = data;
       _currentCity = city ?? data.cityName;
       
-      notifyListeners();
+      await _saveCityPreference(_currentCity!);
       
+      notifyListeners();
     } catch (e) {
       _setError(e.toString());
       notifyListeners();
-      rethrow; 
+      rethrow;
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> _saveCityPreference(String city) async {
+    await initPreferences();
+    await _prefs?.setString(_cityKey, city);
   }
 
   void clearError() => _clearError();
