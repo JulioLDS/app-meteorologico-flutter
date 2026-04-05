@@ -4,6 +4,7 @@ import '../providers/weather_provider.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/forecast_list.dart';
 import '../widgets/search_bar.dart';
+import '../widgets/temperature_chart.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,27 +61,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               else if (provider.weather != null)
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        WeatherCard(weather: provider.weather!),
-                        if (provider.weather!.forecast?.isNotEmpty == true) ...[
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Previsão estendida',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          WeatherCard(weather: provider.weather!),
+                          
+                          // 👇 Adicione estas linhas aqui:
+                          if (provider.weather!.forecast != null && provider.weather!.forecast!.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            TemperatureChart(forecasts: provider.weather!.forecast!),
+                            const SizedBox(height: 24),
+                          ],
+
+                          if (provider.weather!.forecast?.isNotEmpty == true) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Previsão estendida',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ),
-                          ),
-                          ForecastList(forecasts: provider.weather!.forecast!),
+                            ForecastList(forecasts: provider.weather!.forecast!),
+                            const SizedBox(height: 24),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                )
+                  )
               else
                 Expanded(
                   child: Center(
