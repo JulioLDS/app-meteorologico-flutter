@@ -20,6 +20,12 @@ class WeatherProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  List<Map<String, dynamic>> _history = [];
+  bool _isLoadingHistory = false;
+  
+  List<Map<String, dynamic>> get history => _history;
+  bool get isLoadingHistory => _isLoadingHistory;
+
   Future<void> initPreferences() async {
     _prefs ??= await SharedPreferences.getInstance();
   }
@@ -64,6 +70,23 @@ class WeatherProvider with ChangeNotifier {
     await _prefs?.setString(_cityKey, city);
   }
 
+    Future<void> loadHistory({String? city}) async {
+    final cityToLoad = city ?? _currentCity;
+    if (cityToLoad == null) return;
+    
+    _isLoadingHistory = true;
+    notifyListeners();
+    
+    try {
+      _history = await SupabaseService.getWeatherHistory(city: cityToLoad);
+    } catch (e) {
+      print('Erro ao carregar histórico: $e');
+    } finally {
+      _isLoadingHistory = false;
+      notifyListeners();
+    }
+  }
+
   void clearError() => _clearError();
 
   void _setLoading(bool value) {
@@ -78,6 +101,11 @@ class WeatherProvider with ChangeNotifier {
 
   void _clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+   void clearHistory() {
+    _history = [];
     notifyListeners();
   }
 }

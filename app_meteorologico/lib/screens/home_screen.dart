@@ -4,7 +4,8 @@ import '../providers/weather_provider.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/forecast_list.dart';
 import '../widgets/search_bar.dart';
-import '../widgets/temperature_chart.dart'; 
+import '../widgets/temperature_chart.dart';
+import '../widgets/history_list.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,51 +29,71 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Consumer<WeatherProvider>(
       builder: (context, provider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(provider.currentCity ?? '🌤️ Clima Brasil'),
-            centerTitle: true,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () => provider.fetchWeather(city: provider.currentCity),
+        return DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(provider.currentCity ?? '🌤️ Clima Brasil'),
+              centerTitle: true,
+              bottom: const TabBar(
+                tabs: [
+                  Tab(icon: Icon(Icons.cloud), text: 'Clima'),
+                  Tab(icon: Icon(Icons.history), text: 'Histórico'),
+                ],
               ),
-            ],
-          ),
-          body: Column(
-            children: [
-              SearchBarWidget(
-                onSearch: (city) {
-                  provider.clearError();
-                  provider.fetchWeather(city: city);
-                },
-                onClear: provider.clearError,
-              ),
-
-              if (provider.error != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildErrorBanner(provider.error!),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () => provider.fetchWeather(city: provider.currentCity),
                 ),
+              ],
+            ),
+            body: TabBarView(
+              children: [
+                _buildWeatherTab(provider),
+                
+                _buildHistoryTab(provider),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-              if (provider.isLoading)
-                const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (provider.weather != null)
-                Expanded(
-                    child: SingleChildScrollView(
+  Widget _buildWeatherTab(WeatherProvider provider) {
+    return Column(
+      children: [
+        SearchBarWidget(
+          onSearch: (city) {
+            provider.clearError();
+            provider.clearHistory(); 
+            provider.fetchWeather(city: city);
+          },
+          onClear: provider.clearError,
+        ),
+
+        if (provider.error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildErrorBanner(provider.error!),
+          ),
+
+        Expanded(
+          child: provider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : provider.weather != null
+                  ? SingleChildScrollView(
                       child: Column(
                         children: [
                           WeatherCard(weather: provider.weather!),
                           
-                          // 👇 Adicione estas linhas aqui:
-                          if (provider.weather!.forecast != null && provider.weather!.forecast!.isNotEmpty) ...[
+                          if (provider.weather!.forecast?.isNotEmpty == true) ...[
                             const SizedBox(height: 24),
                             TemperatureChart(forecasts: provider.weather!.forecast!),
                             const SizedBox(height: 24),
                           ],
-
+                          
                           if (provider.weather!.forecast?.isNotEmpty == true) ...[
                             const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -89,28 +110,49 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ],
                       ),
+                    )
+                  : const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cloud_outlined, size: 80, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'Digite uma cidade para começar',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-              else
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.cloud_outlined, size: 80, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Digite uma cidade para começar',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+        ),
+      ],
+    );
+  }
+
+  // 👇 Construtor da aba de Histórico
+  Widget _buildHistoryTab(WeatherProvider provider) {
+    if (provider.history.isEmpty && 
+        !provider.isLoadingHistory && 
+        provider.currentCity != null) {
+      Future.microtask(() => provider.loadHistory());
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: TextButton.icon(
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Atualizar histórico'),
+            onPressed: () => provider.loadHistory(),
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: provider.isLoadingHistory
+              ? const Center(child: CircularProgressIndicator())
+              : HistoryList(history: provider.history),
+        ),
+      ],
     );
   }
 
@@ -127,7 +169,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(Icons.error_outline, color: Colors.red.shade700),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(message, style: TextStyle(color: Colors.red.shade700)),
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.red.shade700),
+            ),
           ),
         ],
       ),
