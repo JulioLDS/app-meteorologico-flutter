@@ -6,6 +6,7 @@ import '../widgets/forecast_list.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/temperature_chart.dart';
 import '../widgets/history_list.dart';
+import '../widgets/history_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -129,7 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 👇 Construtor da aba de Histórico
   Widget _buildHistoryTab(WeatherProvider provider) {
     if (provider.history.isEmpty && 
         !provider.isLoadingHistory && 
@@ -147,10 +147,19 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => provider.loadHistory(),
           ),
         ),
+        
         Expanded(
+          flex: 2, 
           child: provider.isLoadingHistory
               ? const Center(child: CircularProgressIndicator())
-              : HistoryList(history: provider.history),
+              : SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      HistoryChart(history: provider.history),
+                      HistoryList(history: provider.history),
+                    ],
+                  ),
+                ),
         ),
       ],
     );
