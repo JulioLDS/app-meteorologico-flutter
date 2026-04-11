@@ -3,10 +3,8 @@ import 'dart:convert';
 import '../models/weather_model.dart';
 
 class WeatherService {
-  // 🔑 COLOQUE SUA CHAVE DA OPENWEATHERMAP AQUI
   static const String apiKey = '96a013c01f5627f982ef4adc1ac842a4';
   
-  // Endpoint com CORS nativo ✅
   static const String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
   static const String forecastUrl = 'https://api.openweathermap.org/data/2.5/forecast';
 
@@ -19,8 +17,8 @@ class WeatherService {
         queryParameters: {
           'q': cityName,
           'appid': apiKey,
-          'units': 'metric', // Retorna temperatura em °C
-          'lang': 'pt_br',   // Descrições em português
+          'units': 'metric', 
+          'lang': 'pt_br',   
         },
       );
 
@@ -36,7 +34,6 @@ class WeatherService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         
-        // Mapeia a resposta da OpenWeatherMap para nosso modelo
         return WeatherData(
           cityName: json['name'],
           country: json['sys']['country'],
@@ -45,7 +42,6 @@ class WeatherService {
           humidity: json['main']['humidity'] as int,
           windSpeed: (json['wind']['speed'] as num).toDouble(),
           date: DateTime.now().toIso8601String().split('T').first,
-          // Gera forecast mockado baseado na temperatura atual (a API free não retorna forecast detalhado por cidade)
           forecast: _generateMockForecast(
             currentTemp: (json['main']['temp'] as num).toDouble(),
             description: json['weather'][0]['description'],
@@ -61,7 +57,6 @@ class WeatherService {
     }
   }
 
-  // Gera previsão mockada para os próximos 4 dias (baseado na temperatura atual)
   List<Forecast> _generateMockForecast({
     required double currentTemp,
     required String description,
@@ -72,7 +67,6 @@ class WeatherService {
     
     for (int i = 1; i <= 4; i++) {
       final dayIndex = (today + i - 1) % 7;
-      // Varia temperatura aleatoriamente em ±3°C
       final variation = (i % 2 == 0 ? 1 : -1) * (1 + (i % 3));
       final temp = currentTemp + variation;
       
@@ -89,7 +83,6 @@ class WeatherService {
     return forecasts;
   }
 
-  // Traduz descrição para português (caso a API retorne em inglês)
   String _getPortugueseDescription(String enDescription) {
     final translations = {
       'clear sky': 'Céu limpo',
