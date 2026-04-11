@@ -8,10 +8,11 @@ part of 'weather_model.dart';
 
 WeatherData _$WeatherDataFromJson(Map<String, dynamic> json) => WeatherData(
       cityName: json['cityName'] as String?,
+      country: json['country'] as String?,
       description: json['description'] as String?,
       temperature: (json['temperature'] as num?)?.toDouble(),
       humidity: (json['humidity'] as num?)?.toInt(),
-      windSpeed: json['windSpeed'] as String?,
+      windSpeed: (json['windSpeed'] as num?)?.toDouble(),
       date: json['date'] as String?,
       forecast: (json['forecast'] as List<dynamic>?)
           ?.map((e) => Forecast.fromJson(e as Map<String, dynamic>))
@@ -21,6 +22,7 @@ WeatherData _$WeatherDataFromJson(Map<String, dynamic> json) => WeatherData(
 Map<String, dynamic> _$WeatherDataToJson(WeatherData instance) =>
     <String, dynamic>{
       'cityName': instance.cityName,
+      'country': instance.country,
       'description': instance.description,
       'temperature': instance.temperature,
       'humidity': instance.humidity,

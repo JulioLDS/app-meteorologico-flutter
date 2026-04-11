@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/weather_model.dart';
+import '../utils/weather_icons.dart';
 
 class WeatherCard extends StatelessWidget {
   final WeatherData weather;
@@ -8,6 +9,10 @@ class WeatherCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gradient = WeatherIcons.getBackgroundGradient(weather.description);
+    final icon = WeatherIcons.getIcon(weather.description);
+    final animation = WeatherIcons.getWeatherAnimation(weather.description);
+
     return Card(
       elevation: 6,
       margin: const EdgeInsets.all(16),
@@ -19,17 +24,21 @@ class WeatherCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.blue.shade400, Colors.blue.shade700],
+            colors: gradient,
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              _getWeatherIcon(weather.description),
-              size: 64,
-              color: Colors.white,
-            ),
+            if (animation != null) ...[
+              animation,
+              const SizedBox(height: 8),
+            ] else
+              Icon(
+                icon,
+                size: 64,
+                color: Colors.white,
+              ),
             const SizedBox(height: 16),
             
             Text(
@@ -66,22 +75,13 @@ class WeatherCard extends StatelessWidget {
               children: [
                 _buildDetailItem(Icons.water_drop, '${weather.humidity ?? '--'}%'),
                 const SizedBox(width: 32),
-                _buildDetailItem(Icons.air, weather.windSpeed ?? '--'),
+                _buildDetailItem(Icons.air, weather.windSpeed != null ? '${weather.windSpeed!.toStringAsFixed(1)} m/s' : '--'),
               ],
             ),
           ],
         ),
       ),
     );
-  }
-
-  IconData _getWeatherIcon(String? description) {
-    if (description == null) return Icons.cloud;
-    final desc = description.toLowerCase();
-    if (desc.contains('sol') || desc.contains('claro')) return Icons.wb_sunny;
-    if (desc.contains('chuva') || desc.contains('nublado')) return Icons.cloud;
-    if (desc.contains('tempestade')) return Icons.thunderstorm;
-    return Icons.cloud;
   }
 
   Widget _buildDetailItem(IconData icon, String label) {
