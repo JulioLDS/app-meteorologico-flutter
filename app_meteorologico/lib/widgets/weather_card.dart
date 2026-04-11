@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/weather_model.dart';
 import '../utils/weather_icons.dart';
+import '../utils/share_service.dart';
 
 class WeatherCard extends StatelessWidget {
   final WeatherData weather;
@@ -73,9 +74,26 @@ class WeatherCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildDetailItem(Icons.water_drop, '${weather.humidity ?? '--'}%'),
-                const SizedBox(width: 32),
-                _buildDetailItem(Icons.air, weather.windSpeed != null ? '${weather.windSpeed!.toStringAsFixed(1)} m/s' : '--'),
+                _buildShareButton(
+                  icon: Icons.share,
+                  color: Colors.green,
+                  label: 'WhatsApp',
+                  onPressed: () => _shareWeather(context, 'whatsapp'),
+                ),
+                const SizedBox(width: 12),
+                _buildShareButton(
+                  icon: Icons.chat_bubble,
+                  color: Colors.blue,
+                  label: 'Twitter',
+                  onPressed: () => _shareWeather(context, 'twitter'),
+                ),
+                const SizedBox(width: 12),
+                _buildShareButton(
+                  icon: Icons.more_horiz,
+                  color: Colors.grey,
+                  label: 'Mais',
+                  onPressed: () => _shareWeather(context, 'native'),
+                ),
               ],
             ),
           ],
@@ -93,5 +111,58 @@ class WeatherCard extends StatelessWidget {
         Text(label, style: const TextStyle(color: Colors.white70)),
       ],
     );
+  }
+
+  Widget _buildShareButton({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: onPressed,
+    );
+  }
+
+  void _shareWeather(BuildContext context, String platform) async {
+    try {
+      switch (platform) {
+        case 'whatsapp':
+          await ShareService.shareWhatsApp(weather);
+          break;
+        case 'twitter':
+          await ShareService.shareTwitter(weather);
+          break;
+        case 'native':
+          await ShareService.shareNative(weather);
+          break;
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Compartilhado com sucesso!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao compartilhar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
