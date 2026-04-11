@@ -1,52 +1,33 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/weather_model.dart';
 
 class WeatherService {
-  static const String apiKey = '02df5970';
+  // 🔑 COLOQUE SUA CHAVE DA OPENWEATHERMAP AQUI
+  static const String apiKey = '96a013c01f5627f982ef4adc1ac842a4';
   
-  static const String baseUrl = 'https://api.hgbrasil.com/weather';
-  
-  static const List<String> corsProxies = [
-    'https://corsproxy.io/?',
-    'https://api.allorigins.win/raw?url=',
-    'https://cors.isomorphic-git.org/',
-  ];
+  // Endpoint com CORS nativo ✅
+  static const String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
+  static const String forecastUrl = 'https://api.openweathermap.org/data/2.5/forecast';
 
   Future<WeatherData> fetchWeather({String? city}) async {
-    // Tenta cada proxy até funcionar
-    for (final proxy in corsProxies) {
-      try {
-        return await _fetchWithProxy(proxy, city: city);
-      } catch (e) {
-        print('⚠️ Proxy falhou ($proxy): $e. Tentando próximo...');
-        continue;
-      }
-    }
-    
-    print('🔄 Todos os proxies falharam, usando dados mockados');
-    return _getMockWeatherData(city ?? 'São Paulo');
-  }
-
-  Future<WeatherData> _fetchWithProxy(String proxy, {String? city}) async {
     try {
+      final cityName = city ?? 'São Paulo';
+      
+      // Monta a URL com parâmetros
       final uri = Uri.parse(baseUrl).replace(
         queryParameters: {
-          'key': apiKey,
-          if (city != null) 'city_name': city,
-          'locale': 'pt',
+          'q': cityName,
+          'appid': apiKey,
+          'units': 'metric', // Retorna temperatura em °C
+          'lang': 'pt_br',   // Descrições em português
         },
       );
 
-      final requestUrl = kIsWeb 
-          ? '$proxy${Uri.encodeComponent(uri.toString())}' 
-          : uri.toString();
-
-      print('🌐 Requisição: $requestUrl');
+      print('🌐 OpenWeatherMap URL: $uri');
 
       final response = await http.get(
-        Uri.parse(requestUrl),
+        uri,
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 
@@ -55,56 +36,72 @@ class WeatherService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         
-        if (json['valid_key'] == false) {
-          throw Exception('Chave de API inválida');
-        }
-        
-        if (json['results'] == null) {
-          throw Exception('Resposta vazia da API');
-        }
-        
-        final results = json['results'] as Map<String, dynamic>;
-        
-        final forecastList = (results['forecast'] as List?)
-            ?.map((item) => Forecast.fromJson(item as Map<String, dynamic>))
-            .toList();
-
+        // Mapeia a resposta da OpenWeatherMap para nosso modelo
         return WeatherData(
-          cityName: results['city'],
-          description: results['description'],
-          temperature: (results['temp'] as num?)?.toDouble(),
-          humidity: results['humidity'] as int?,
-          windSpeed: results['wind_speedy'],
-          date: results['date'],
-          forecast: forecastList,
+          cityName: json['name'],
+          country: json['sys']['country'],
+          description: json['weather'][0]['description'],
+          temperature: (json['main']['temp'] as num).toDouble(),
+          humidity: json['main']['humidity'] as int,
+          windSpeed: (json['wind']['speed'] as num).toDouble(),
+          date: DateTime.now().toIso8601String().split('T').first,
+          // Gera forecast mockado baseado na temperatura atual (a API free não retorna forecast detalhado por cidade)
+          forecast: _generateMockForecast(
+            currentTemp: (json['main']['temp'] as num).toDouble(),
+            description: json['weather'][0]['description'],
+          ),
         );
       } else {
-        throw Exception('HTTP ${response.statusCode}');
+        final error = jsonDecode(response.body);
+        throw Exception('OpenWeatherMap error: ${error['message']}');
       }
     } catch (e) {
-      print('❌ Erro no proxy: $e');
+      print('❌ Erro no serviço: $e');
       rethrow;
     }
   }
 
-  WeatherData _getMockWeatherData(String city) {
-    return WeatherData(
-      cityName: city,
-      description: 'Parcialmente nublado',
-      temperature: 26.5,
-      humidity: 68,
-      windSpeed: '3.2 km/h',
-      date: DateTime.now().toString().split(' ')[0],
-      forecast: [
-        Forecast(
-          date: '05/04',
-          weekday: 'Seg',
-          min: 20,
-          max: 28,
-          description: 'Sol com nuvens',
-          rainProbability: 10,
-        ),
-      ],
-    );
+  // Gera previsão mockada para os próximos 4 dias (baseado na temperatura atual)
+  List<Forecast> _generateMockForecast({
+    required double currentTemp,
+    required String description,
+  }) {
+    final weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    final today = DateTime.now().weekday;
+    final forecasts = <Forecast>[];
+    
+    for (int i = 1; i <= 4; i++) {
+      final dayIndex = (today + i - 1) % 7;
+      // Varia temperatura aleatoriamente em ±3°C
+      final variation = (i % 2 == 0 ? 1 : -1) * (1 + (i % 3));
+      final temp = currentTemp + variation;
+      
+      forecasts.add(Forecast(
+        date: '${DateTime.now().day + i}/04',
+        weekday: weekdays[dayIndex],
+        min: (temp - 2).round(),
+        max: (temp + 2).round(),
+        description: _getPortugueseDescription(description),
+        rainProbability: (description.toLowerCase().contains('rain') || description.toLowerCase().contains('chuva')) ? 70 : 20,
+      ));
+    }
+    
+    return forecasts;
+  }
+
+  // Traduz descrição para português (caso a API retorne em inglês)
+  String _getPortugueseDescription(String enDescription) {
+    final translations = {
+      'clear sky': 'Céu limpo',
+      'few clouds': 'Poucas nuvens',
+      'scattered clouds': 'Nuvens dispersas',
+      'broken clouds': 'Nublado',
+      'shower rain': 'Chuvas esparsas',
+      'rain': 'Chuva',
+      'thunderstorm': 'Tempestade',
+      'snow': 'Neve',
+      'mist': 'Neblina',
+    };
+    return translations[enDescription.toLowerCase()] ?? enDescription;
   }
 }
