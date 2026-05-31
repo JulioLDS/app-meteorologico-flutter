@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
 import '../widgets/weather_card.dart';
-import '../widgets/forecast_list.dart';
+import '../widgets/forecast_card.dart';
 import '../widgets/search_bar.dart';
-import '../widgets/temperature_chart.dart';
-import '../widgets/history_list.dart';
 import '../widgets/history_chart.dart';
+import '../widgets/history_list.dart';
+import '../theme/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,163 +29,188 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 1024;
+
     return Consumer<WeatherProvider>(
       builder: (context, provider, child) {
-        return DefaultTabController(
-          length: 2,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(provider.currentCity ?? '🌤️ Clima Brasil'),
-              centerTitle: true,
-              bottom: const TabBar(
-                tabs: [
-                  Tab(icon: Icon(Icons.cloud), text: 'Clima'),
-                  Tab(icon: Icon(Icons.history), text: 'Histórico'),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () => provider.fetchWeather(city: provider.currentCity),
+
+        return Scaffold(
+          backgroundColor: AppColors.darkBgPrimary,
+          // ✅ SCROLL UNIFICADO PARA TUDO
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🔍 BARRA DE PESQUISA COM CLEAR BUTTON
+                    SearchBarWidget(
+                      onSearch: (city) {
+                        provider.clearError();
+                        provider.fetchWeather(city: city); 
+                      },
+                      onClear: () {
+                        provider.clearError();
+                      },
+                    ),
+
+                    // CONTEÚDO PRINCIPAL
+                    if (provider.isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48),
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      )
+                    else if (provider.error != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          provider.error!,
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      )
+                    else if (provider.weather != null) ...[
+                      if (isDesktop)
+                        // 🖥️ DESKTOP: LADO A LADO COM SCROLL JUNTO
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Esquerda: Clima + Previsão
+                            Expanded(
+                              flex: 6,
+                              child: Column(
+                                children: [
+                                  WeatherCard(
+                                    weather: provider.weather!,
+                                    isDarkMode: true,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  if (provider.weather!.forecast?.isNotEmpty == true)
+                                    ForecastCard(
+                                      forecasts: provider.weather!.forecast!,
+                                      isDarkMode: true,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            // Direita: Histórico (acompanha scroll)
+                            Expanded(
+                              flex: 4,
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.darkGlass,
+                                  borderRadius: BorderRadius.circular(32),
+                                  border: Border.all(color: AppColors.darkGlassBorder),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Histórico',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (provider.history.isNotEmpty) ...[
+                                      HistoryChart(
+                                        history: provider.history,
+                                        isDarkMode: true,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      HistoryList(
+                                        history: provider.history,
+                                        isDarkMode: true,
+                                      ),
+                                    ] else
+                                      const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(32),
+                                          child: Text(
+                                            'Sem histórico ainda',
+                                            style: TextStyle(color: Colors.white54),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        // 📱 MOBILE: COLUNA
+                        Column(
+                          children: [
+                            WeatherCard(
+                              weather: provider.weather!,
+                              isDarkMode: true,
+                            ),
+                            const SizedBox(height: 20),
+                            if (provider.weather!.forecast?.isNotEmpty == true)
+                              ForecastCard(
+                                forecasts: provider.weather!.forecast!,
+                                isDarkMode: true,
+                              ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              'Histórico',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (provider.history.isNotEmpty) ...[
+                              HistoryChart(
+                                history: provider.history,
+                                isDarkMode: true,
+                              ),
+                              const SizedBox(height: 16),
+                              HistoryList(
+                                history: provider.history,
+                                isDarkMode: true,
+                              ),
+                            ],
+                          ],
+                        ),
+                    ] else
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(48),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.cloud_outlined, size: 80, color: Colors.white24),
+                              SizedBox(height: 16),
+                              Text(
+                                'Busque uma cidade para começar',
+                                style: TextStyle(color: Colors.white54, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-            body: TabBarView(
-              children: [
-                _buildWeatherTab(provider),
-                
-                _buildHistoryTab(provider),
-              ],
+              ),
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildWeatherTab(WeatherProvider provider) {
-    return Column(
-      children: [
-        SearchBarWidget(
-          onSearch: (city) {
-            provider.clearError();
-            provider.clearHistory(); 
-            provider.fetchWeather(city: city);
-          },
-          onClear: provider.clearError,
-        ),
-
-        if (provider.error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildErrorBanner(provider.error!),
-          ),
-
-        Expanded(
-          child: provider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : provider.weather != null
-                  ? SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          WeatherCard(weather: provider.weather!),
-                          
-                          if (provider.weather!.forecast?.isNotEmpty == true) ...[
-                            const SizedBox(height: 24),
-                            TemperatureChart(forecasts: provider.weather!.forecast!),
-                            const SizedBox(height: 24),
-                          ],
-                          
-                          if (provider.weather!.forecast?.isNotEmpty == true) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Previsão estendida',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                            ForecastList(forecasts: provider.weather!.forecast!),
-                            const SizedBox(height: 24),
-                          ],
-                        ],
-                      ),
-                    )
-                  : const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.cloud_outlined, size: 80, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'Digite uma cidade para começar',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHistoryTab(WeatherProvider provider) {
-    if (provider.history.isEmpty && 
-        !provider.isLoadingHistory && 
-        provider.currentCity != null) {
-      Future.microtask(() => provider.loadHistory());
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: TextButton.icon(
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Atualizar histórico'),
-            onPressed: () => provider.loadHistory(),
-          ),
-        ),
-        
-        Expanded(
-          flex: 2, 
-          child: provider.isLoadingHistory
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      HistoryChart(history: provider.history),
-                      HistoryList(history: provider.history),
-                    ],
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildErrorBanner(String message) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: Colors.red.shade700),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

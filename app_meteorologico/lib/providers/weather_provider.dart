@@ -38,23 +38,28 @@ class WeatherProvider with ChangeNotifier {
     }
   }
 
-  Future<void> fetchWeather({String? city}) async {
+    Future<void> fetchWeather({String? city}) async {
     _setLoading(true);
     _clearError();
-    
+    _history = []; // ✅ Limpa histórico imediatamente ao buscar nova cidade
+    notifyListeners();
+
     try {
       final data = await _service.fetchWeather(city: city);
-      
       _weather = data;
       _currentCity = city ?? data.cityName;
-      
-       await SupabaseService.saveWeatherData(
+
+      await SupabaseService.saveWeatherData(
         city: _currentCity!,
         temperature: data.temperature,
-        humidity: data.humidity?.toDouble(), 
+        humidity: data.humidity?.toDouble(),
       );
+
       await _saveCityPreference(_currentCity!);
-      
+
+      // ✅ Carrega histórico da NOVA cidade automaticamente
+      await loadHistory();
+
       notifyListeners();
     } catch (e) {
       _setError(e.toString());

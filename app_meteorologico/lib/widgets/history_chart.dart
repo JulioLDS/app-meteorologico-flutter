@@ -1,115 +1,176 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_colors.dart';
 
 class HistoryChart extends StatelessWidget {
   final List<Map<String, dynamic>> history;
+  final bool isDarkMode;
 
-  const HistoryChart({super.key, required this.history});
+  const HistoryChart({
+    super.key,
+    required this.history,
+    required this.isDarkMode,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (history.isEmpty) return const SizedBox.shrink();
 
-    // Ordenar por data (do mais antigo para o mais recente)
-    final sortedHistory = List<Map<String, dynamic>>.from(history);
-    sortedHistory.sort((a, b) {
-      final dateA = DateTime.tryParse(a['recorded_at'] ?? '') ?? DateTime.now();
-      final dateB = DateTime.tryParse(b['recorded_at'] ?? '') ?? DateTime.now();
-      return dateA.compareTo(dateB);
-    });
+    final sorted = List<Map<String, dynamic>>.from(history)
+      ..sort((a, b) {
+        final da = DateTime.tryParse(a['recorded_at'] ?? '') ?? DateTime.now();
+        final db = DateTime.tryParse(b['recorded_at'] ?? '') ?? DateTime.now();
+        return da.compareTo(db);
+      });
 
     final spots = <FlSpot>[];
-    final dates = <String>[];
+    final labels = <String>[];
 
-    for (int i = 0; i < sortedHistory.length; i++) {
-      final temp = (sortedHistory[i]['temperature'] as num?)?.toDouble();
-      final dateStr = sortedHistory[i]['recorded_at'] ?? '';
-      
+    for (int i = 0; i < sorted.length; i++) {
+      final temp = (sorted[i]['temperature'] as num?)?.toDouble();
       if (temp != null) {
         spots.add(FlSpot(i.toDouble(), temp));
-        
-        final date = DateTime.tryParse(dateStr);
+        final date = DateTime.tryParse(sorted[i]['recorded_at'] ?? '');
         if (date != null) {
-          dates.add(DateFormat('dd/MM HH:mm').format(date));
-        } else {
-          dates.add('');
+          labels.add(DateFormat('dd/MM').format(date));
         }
       }
     }
 
-    double? minY;
-    double? maxY;
-    
-    if (spots.isNotEmpty) {
-      final temps = spots.map((e) => e.y).toList();
-      minY = temps.reduce((a, b) => a < b ? a : b).toDouble() - 2;
-      maxY = temps.reduce((a, b) => a > b ? a : b).toDouble() + 2;
-    }
+    if (spots.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'Histórico de Temperatura',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    final temps = spots.map((e) => e.y).toList();
+    final minY = temps.reduce((a, b) => a < b ? a : b).toDouble() - 2;
+    final maxY = temps.reduce((a, b) => a > b ? a : b).toDouble() + 2;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDarkMode ? AppColors.darkGlass : AppColors.lightGlass,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDarkMode ? AppColors.darkGlassBorder : AppColors.lightGlassBorder,
+            ),
           ),
-        ),
-        SizedBox(
-          height: 250,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: LineChart(
-              LineChartData(
-                gridData: const FlGridData(show: true),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true, reservedSize: 30),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index >= 0 && index < dates.length) {
-                          if (index == 0 || index == dates.length - 1 || index % 2 == 0) {
-                            return Text(
-                              dates[index],
-                              style: const TextStyle(fontSize: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Evolução da Temperatura',
+                style: TextStyle(
+                  color: isDarkMode ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 200,
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: 2,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.05),
+                        strokeWidth: 1,
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) => Text(
+                            '${value.toInt()}°',
+                            style: TextStyle(
+                              color: isDarkMode ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: (spots.length > 6) ? 2 : 1,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            if (index >= 0 && index < labels.length) {
+                              return Text(
+                                labels[index],
+                                style: TextStyle(
+                                  color: isDarkMode ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                                  fontSize: 10,
+                                ),
+                              );
+                            }
+                            return const Text('');
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    minX: 0,
+                    maxX: (spots.length - 1).toDouble(),
+                    minY: minY,
+                    maxY: maxY,
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: spots,
+                        isCurved: true,
+                        color: AppColors.accentSecondary,
+                        barWidth: 3,
+                        isStrokeCapRound: true,
+                        dotData: FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                            radius: 5,
+                            color: isDarkMode ? AppColors.darkBgPrimary : AppColors.lightBgPrimary,
+                            strokeWidth: 2,
+                            strokeColor: AppColors.accentSecondary,
+                          ),
+                        ),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: AppColors.accentSecondary.withOpacity(0.15),
+                        ),
+                      ),
+                    ],
+                    lineTouchData: LineTouchData(
+                      enabled: true,
+                      touchTooltipData: LineTouchTooltipData(
+                        getTooltipColor: (touchedSpot) =>
+                            isDarkMode ? AppColors.darkSurface : AppColors.lightSurface,
+                        getTooltipItems: (touchedSpots) {
+                          return touchedSpots.map((spot) {
+                            return LineTooltipItem(
+                              '${spot.y.toStringAsFixed(1)}°C',
+                              TextStyle(
+                                color: isDarkMode ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             );
-                          }
-                        }
-                        return const Text('');
-                      },
+                          }).toList();
+                        },
+                      ),
                     ),
                   ),
                 ),
-                borderData: FlBorderData(show: true),
-                minX: 0,
-                maxX: sortedHistory.length > 1 ? (sortedHistory.length - 1).toDouble() : 1,
-                minY: minY,  
-                maxY: maxY,  
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: Colors.orange.shade600,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.orange.withOpacity(0.2),
-                    ),
-                  ),
-                ],
               ),
-            ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
